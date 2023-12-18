@@ -90,7 +90,7 @@
           - tunnelblick
           - slack
           - skype    # SG-NME
-          - whatsapp # ID-DCI/INDONEST & Lintasarta
+          - whatsapp # ID-DCI/INDONET & Lintasarta
           - iterm2
           - google-cloud-sdk
           - sequel-ace # MySQL client GUI
@@ -394,7 +394,7 @@
         state: latest
         name:
           - bat # better cat
-          - exa # better ls
+          - eza # better ls
 
     - name:     Installing recommended packages from Homebrew Casks
       register: homebrew

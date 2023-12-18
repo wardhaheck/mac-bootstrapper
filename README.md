@@ -5,7 +5,7 @@ and to standardize our weaponry in a never ending war
 against alerts and incidents,
 let's use Ansible to bootstrap our workstation.
 
-The bootstrap is meant to be complete while staying as agnostic as possible.
+The bootstrap aims to be complete while staying as agnostic as possible.
 And all tasks are grouped into 3 (three) major tags:
 
 -   essential
