@@ -1,0 +1,642 @@
+#
+# Ansible macOS bootstrapper
+#
+# (c) wardhaheck <wardhana.wardhana@hostinger.com> 2023
+#
+# mas bug since Ventura:
+# cannot install and uninstall apps,
+# can only list and search.
+#
+
+- name:         macOS bootstrapper
+  hosts:        localhost
+  connection:   local
+  gather_facts: false
+  vars:
+    ruby_ver: 3.2.2
+  tasks:
+
+    #===================================================================
+    # Essential
+    #===================================================================
+
+    - name:     Tapping essential Homebrew repos
+      register: homebrew
+      tags:
+        - essential
+        - homebrew
+      homebrew_tap:
+        name:
+          - ankitpokhrel/jira-cli
+          - teamookla/speedtest
+
+    - name:     Installing essential packages from Homebrew
+      register: homebrew
+      tags:
+        - essential
+        - homebrew
+      homebrew:
+        state:           latest
+        update_homebrew: true
+        name:
+          - bash # version 5.x, instead of 3.x in /usr/bin/
+          - pyenv
+          - gh
+          - kubernetes-cli # k8s
+          - krew           # k8s
+          - govc  # VMware vCenter/ESXi
+          - rbenv
+          - ruby-build
+          - ipmitool
+          - zsh-completions
+          - mysql-client # MySQL client CLI
+          - grep      # GNU grep
+          - gnu-sed   # GNU sed
+          - gawk      # GNU awk
+          - coreutils # GNU date, factor, etc.
+          - findutils # GNU find, xargs, etc.
+          - fzf # fuzzy finder
+          - htop
+          - parallel
+          - pssh # parallel ssh
+          - wget
+          - curl   # alternative: /usr/bin/curl
+          - iperf3 # alternative: /usr/bin/iperf3-darwin
+          - netcat # alternative: /usr/bin/nc
+          - speedtest # official by speedtest.net
+          - telnet
+          - nmap
+          - mtr
+          - jq
+          - yq # jq for YAML
+          - yj # YAML to JSON and many more
+          - go
+          - rust # for cargo
+          - mas  # Mac App Store
+          - jira-cli
+          - neofetch # every sane shell should have neofetch
+
+    - name:     Installing essential packages from Homebrew Casks
+      register: homebrew
+      tags:
+        - essential
+        - homebrew
+      homebrew_cask:
+        state: latest
+        name:
+          - 1password
+          - 1password-cli
+          - nordlayer
+          - tunnelblick
+          - slack
+          - skype    # SG-NME
+          - whatsapp # ID-DCI/INDONEST & Lintasarta
+          - iterm2
+          - google-cloud-sdk
+          - sequel-ace # MySQL client GUI
+          - libreoffice
+          - foxitreader # PDF reader
+          - grammarly-desktop
+          - flameshot # screen capturer
+          - middleclick
+          - appcleaner # uninstall DMG/PKG apps cleanly
+
+    #-------------------------------------------------------------------
+    # Tunnelblick
+    #-------------------------------------------------------------------
+
+    - name:     Installing Tunnelblick
+      register: tunnelblick
+      tags:
+        - essential
+        - homebrew
+        - tunnelblick
+      homebrew_cask:
+        state: latest
+        name:
+          - tunnelblick
+
+    - name: Fixing Tunnelblick configs 1/3
+      when: tunnelblick.changed |bool
+      tags:
+        - essential
+        - tunnelblick
+      register:     tblk_list
+      changed_when: false
+      shell:
+        cmd: |-
+          find \
+            ~/Library/Application\ Support/Tunnelblick/Configurations/ \
+            -name '*.tblk'
+
+    - name: Fixing Tunnelblick configs 2/3
+      when: tunnelblick.changed |bool
+      tags:
+        - essential
+        - tunnelblick
+      shell:
+        cmd: |-
+          SECDIR="/Library/Application Support/Tunnelblick/Users/$(whoami)"
+
+          sudo cp -a \
+            ~/Library/Application\ Support/Tunnelblick/Configurations/*.tblk \
+            "$SECDIR"
+
+          sudo chown -R root:wheel "$SECDIR"
+
+          sudo find "$SECDIR" -type d -exec chmod 755 '{}' \;
+          sudo find "$SECDIR" -type f -exec chmod 700 '{}' \;
+
+    - name: Fixing Tunnelblick configs 3/3
+      when: tunnelblick.changed |bool
+      tags:
+        - essential
+        - tunnelblick
+      loop: "{{ tblk_list.stdout |split('\n') }}"
+      shell:
+        cmd: |-
+          CONF="$(basename {{ item |quote }} .tblk)"
+
+          defaults write net.tunnelblick.tunnelblick "${CONF}autoConnect"                                     '0'
+          defaults write net.tunnelblick.tunnelblick "${CONF}useDNS"                                          '1'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-openvpnVersion"                                 '""'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-loggingLevel"                                   '3'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-disableNetworkAccessAfterDisconnect"            '0'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-resetPrimaryInterfaceAfterUnexpectedDisconnect" '0'
+
+          defaults write net.tunnelblick.tunnelblick "${CONF}-notMonitoringConnection"                              '0'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-routeAllTrafficThroughVpn"                            '1'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-doNotDisableIpv6onTun"                                '0'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-disableSecondaryNetworkServices"                      '0'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-notOKToCheckThatIPAddressDidNotChangeAfterConnection" '0'
+
+          defaults write net.tunnelblick.tunnelblick "${CONF}-tunnelUpSoundName"   'Submarine'
+          defaults write net.tunnelblick.tunnelblick "${CONF}-tunnelDownSoundName" 'Hero'
+
+          defaults write net.tunnelblick.tunnelblick "namedCredentialsThatAllConfigurationsUse" 'Common'
+
+    #-------------------------------------------------------------------
+    # WireGuard
+    #-------------------------------------------------------------------
+
+    - name: Installing essential apps from Apps Store
+      when: false
+      tags:
+        - essential
+        - mas
+      mas:
+        state: latest
+        id:
+          - 1451685025 # WireGuard
+
+    #-------------------------------------------------------------------
+    # ruby + knife
+    #-------------------------------------------------------------------
+
+    - name: Installing Ruby from rbenv
+      tags:
+        - essential
+        - rbenv
+      shell:
+        creates: "$HOME/.rbenv/versions/{{ ruby_ver }}"
+        cmd: |-
+          rbenv install -s "{{ ruby_ver }}"
+
+    - name: Checking existing Ruby version
+      tags:
+        - essential
+        - rbenv
+      register:     rbenv_ver
+      changed_when: false
+      shell:
+        cmd: |-
+          ruby -v | awk '{print $2}'
+
+    - name: Setting Ruby version
+      when: rbenv_ver.stdout != ruby_ver
+      tags:
+        - essential
+        - rbenv
+      shell:
+        cmd: |-
+          rbenv global "{{ ruby_ver }}"
+
+    - name: Checking RubyGems update
+      tags:
+        - essential
+        - rbenv
+      register:     gem_update
+      changed_when: false
+      shell:
+        cmd: |-
+          gem outdated
+
+    - name: Updating RubyGems
+      when: gem_update.stdout != ""
+      tags:
+        - essential
+        - rbenv
+      shell:
+        cmd: |-
+          gem update
+
+    - name: Installing knife
+      tags:
+        - essential
+        - rbenv
+      gem:
+        state: latest
+        name:  knife
+
+    #-------------------------------------------------------------------
+    # k8s
+    #-------------------------------------------------------------------
+
+    - name: Installing kubectl-ctx
+      tags:
+        - essential
+        - k8s
+      shell:
+        creates: $HOME/.krew/bin/kubectl-ctx
+        cmd: |-
+          krew install ctx
+
+    - name: Installing kubectl-ns
+      tags:
+        - essential
+        - k8s
+      shell:
+        creates: $HOME/.krew/bin/kubectl-ns
+        cmd: |-
+          krew install ns
+
+    - name: Cloning kubectl-aliases
+      tags:
+        - essential
+        - k8s
+      git:
+        repo:  https://github.com/ahmetb/kubectl-aliases.git
+        dest:  $HOME/.local/share/kubectl-aliases
+        depth: 1
+
+    #-------------------------------------------------------------------
+    # pip + pipx packages
+    #-------------------------------------------------------------------
+
+    - name:     Installing essential packages from pip
+      register: pip
+      tags:
+        - essential
+        - pip
+      pip:
+        state:      latest
+        executable: $PYENV_ROOT/shims/pip
+        name:
+          - pip
+          - setuptools
+          - wheel
+          - pip_search
+          - pipx
+
+    - name: Installing essential packages from pipx
+      tags:
+        - essential
+        - pipx
+      community.general.pipx:
+        state: latest
+        name:  "{{ item }}"
+      loop:
+        - ansible
+        - nbcli  # NetBox
+        - httpie # better curl
+
+    - name: Completing nbcli installation
+      tags:
+        - essential
+        - pipx
+      shell:
+        creates: $PIPX_HOME/venvs/nbcli/lib/python3.*/site-packages/setuptools
+        cmd: |-
+          pipx runpip nbcli install setuptools
+
+    #-------------------------------------------------------------------
+    # Go packages
+    #-------------------------------------------------------------------
+
+    - name: Installing promql-cli
+      tags:
+        - essential
+        - go
+      shell:
+        creates: $HOME/go/bin/promql-cli
+        cmd: |-
+          go install github.com/nalbury/promql-cli@latest
+
+    - name: Installing amtool
+      tags:
+        - essential
+        - go
+      shell:
+        creates: $HOME/go/bin/amtool
+        cmd: |-
+          go install github.com/prometheus/alertmanager/cmd/amtool@latest
+
+    #-------------------------------------------------------------------
+    # Trackpad
+    #-------------------------------------------------------------------
+
+    - name:     Checking tap to click
+      register: tap2click
+      tags:
+        - essential
+        - trackpad
+      shell:
+        cmd: |-
+          defaults read com.apple.AppleMultitouchTrackpad "Clicking"
+
+    - name: Setting tap to click
+      tags:
+        - essential
+        - trackpad
+      when: tap2click.stdout != 1
+      shell:
+        cmd: |-
+          defaults write com.apple.AppleMultitouchTrackpad "Clicking" '1'
+
+    - name:     Checking right click
+      register: rclick
+      tags:
+        - essential
+        - trackpad
+      shell:
+        cmd: |-
+          defaults read com.apple.AppleMultitouchTrackpad "TrackpadRightClick"
+
+    - name: Setting right click
+      tags:
+        - essential
+        - trackpad
+      when: rclick.stdout != 1
+      shell:
+        cmd: |-
+          defaults write com.apple.AppleMultitouchTrackpad "TrackpadRightClick" '1'
+
+    #===================================================================
+    # Recommended
+    #===================================================================
+
+    - name:     Installing recommended packages from Homebrew
+      register: homebrew
+      tags:
+        - recommended
+        - homebrew
+      homebrew:
+        state: latest
+        name:
+          - bat # better cat
+          - exa # better ls
+
+    - name:     Installing recommended packages from Homebrew Casks
+      register: homebrew
+      tags:
+        - recommended
+        - homebrew
+      homebrew_cask:
+        state: latest
+        name:
+          - maccy     # clipboard manager
+          - rectangle # resize windows easily
+          - raycast   # better and faster Spotlight
+          - hot # temperature status bar
+
+    #-------------------------------------------------------------------
+    # Trackpad
+    #-------------------------------------------------------------------
+
+    - name:     Checking pinch to zoom
+      tags:
+        - essential
+        - recommended
+      register: pinch2zoom
+      shell:
+        cmd: |-
+          defaults read com.apple.AppleMultitouchTrackpad "TrackpadPinch"
+
+    - name: Setting pinch to zoom
+      tags:
+        - essential
+        - trackpad
+      when: pinch2zoom.stdout != 1
+      shell:
+        cmd: |-
+          defaults write com.apple.AppleMultitouchTrackpad "TrackpadPinch" '1'
+
+    #===================================================================
+    # Extra
+    #===================================================================
+
+    - name:     Installing extra packages from Homebrew
+      register: homebrew
+      tags:
+        - extra
+        - homebrew
+      homebrew:
+        state: latest
+        name:
+          - neovim
+          - direnv # envar per directory
+          - dialog # TUI builder
+          - smartmontools
+
+    - name:     Installing extra packages from Homebrew Casks
+      register: homebrew
+      tags:
+        - extra
+        - homebrew
+      homebrew_cask:
+        state: latest
+        name:
+          - visual-studio-code
+          - obsidian
+          - telegram-desktop # SAE-ID groups
+          - kap # screen recorder
+
+    - name: Installing extra packages from pipx
+      tags:
+        - extra
+        - pipx
+      community.general.pipx:
+        state: latest
+        name:  "{{ item }}"
+      loop:
+        - gcalcli # CLI Google Calendar client
+        - grip    # render GitHub Markdown in browser
+
+    - name: Installing extra apps from Apps Store
+      when: false
+      tags:
+        - extra
+        - mas
+      mas:
+        state: latest
+        id:
+          - 6443843900 # iBar
+         #- 937984704  # Amphetamine
+
+    - name: Installing plistwatch
+      tags:
+        - essential
+        - go
+      shell:
+        creates: $HOME/go/bin/plistwatch
+        cmd: |-
+          go install github.com/catilac/plistwatch@latest
+
+    #===================================================================
+    # zsh
+    #===================================================================
+
+    - name: Setting zsh 1/3
+      tags:
+        - essential
+        - recommended
+        - extra
+        - zsh
+      blockinfile:
+        path:         $HOME/.zshrc
+        create:       true
+        marker:       '# {mark} safe early config'
+        insertbefore: BOF
+        block:        |
+          #
+          # All configs below are SAFE because they test each parameter
+          # before sourcing or exporting it,
+          # and do not blindly assume that you use any specific add-ons,
+          # like oh-my-zsh or Powerevel10K.
+          # But when you do, these configs will load them properly.
+          #
+
+          # Powerlevel10k instant prompt, should stay close to the top of ~/.zshrc
+          test -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" && . $_
+
+          if [ -n "$HOMEBREW_PREFIX" ] ; then
+
+            # brew completions, should be loaded before oh-my-zsh
+            FPATH="${HOMEBREW_PREFIX}/share/zsh/site-functions:$FPATH"
+
+            test -d ${HOMEBREW_PREFIX}/opt/speedtest/bin          && PATH=$_:$PATH && export PATH
+            test -d ${HOMEBREW_PREFIX}/opt/mysql-client/bin       && PATH=$_:$PATH && export PATH
+            test -d ${HOMEBREW_PREFIX}/opt/grep/libexec/gnubin    && PATH=$_:$PATH && export PATH
+            test -d ${HOMEBREW_PREFIX}/opt/gawk/libexec/gnubin    && PATH=$_:$PATH && export PATH
+            test -d ${HOMEBREW_PREFIX}/opt/gnu-sed/libexec/gnubin && PATH=$_:$PATH && export PATH
+
+            test -r ${HOMEBREW_PREFIX}/share/google-cloud-sdk/path.zsh.inc       && . $_
+            test -r ${HOMEBREW_PREFIX}/share/google-cloud-sdk/completion.zsh.inc && . $_
+          fi
+
+          # pyenv - load before oh-my-zsh pyenv plugin
+          test -d ~/.pyenv && PYENV_ROOT=$_ && export PYENV_ROOT
+
+          # Paths
+          test -d ~/.pyenv/bin && PATH=$_:$PATH && export PATH
+          test -d ~/.local/bin && PATH=$_:$PATH && export PATH
+          test -d ~/.cargo/bin && PATH=$_:$PATH && export PATH
+          test -d ~/.krew/bin  && PATH=$_:$PATH && export PATH
+          test -d ~/go/bin     && PATH=$_:$PATH && export PATH
+          test -d ~/bin        && PATH=$_:$PATH && export PATH
+
+          which pipx   &>/dev/null && eval "$(register-python-argcomplete pipx)" # pipx completions
+          which pyenv  &>/dev/null && eval "$(pyenv  init --path)"
+          which rbenv  &>/dev/null && eval "$(rbenv  init - zsh)"
+          which direnv &>/dev/null && eval "$(direnv hook   zsh)"
+
+          # Key bindings
+          bindkey "^A"      beginning-of-line
+          bindkey "^[[H"    beginning-of-line # Home
+          bindkey "^[[1;5D" backward-word     # Ctrl-Left
+          bindkey "^[[1;5C" forward-word      # Ctrl-Right
+          bindkey "^Y"      yank              # Ctrl-Y
+          bindkey "^[[F"    end-of-line       # End
+          bindkey "^E"      end-of-line
+          bindkey "^K"      kill-line
+          bindkey "^U"      backward-kill-line
+          bindkey '^R'      history-incremental-search-backward
+
+          # bold red prompt for root
+          test $EUID -eq 0 && PS1='%B%F{red}[%n@%m:%~]%#%f%b '
+
+    # Separated here
+    # to anticipate manual inclusion
+    # in pre-bootstrap stage
+    - name: Setting zshrc 2/3
+      tags:
+        - essential
+        - recommended
+        - extra
+        - zsh
+      blockinfile:
+        path:        $HOME/.zshrc
+        create:      true
+        marker:      '# {mark} pipx safe environment for Ansible'
+        insertafter: EOF
+        block:       |
+          if [ -d ~/.pipx ] ; then
+            export        PIPX_HOME="${HOME}/.pipx"
+            export   PIPX_TRASH_DIR="${PIPX_HOME}/trash"
+            export PIPX_SHARED_LIBS="${PIPX_HOME}/shared"
+            export PIPX_LOCAL_VENVS="${PIPX_HOME}/venvs"
+          fi
+
+    - name: Setting zshrc 3/3
+      tags:
+        - essential
+        - recommended
+        - extra
+        - zsh
+      blockinfile:
+        path:        $HOME/.zshrc
+        create:      true
+        marker:      '# {mark} safe late config'
+        insertafter: EOF
+        block:       |
+          # fzf should be loaded after oh-my-zsh plugins
+          test -r ~/.fzf.zsh                                      && . $_
+          test -r ~/.local/share/kubectl-aliases/.kubectl_aliases && . $_
+          test -r ~/.iterm2_shell_integration.zsh                 && . $_
+          test -r ~/.bazshly/bazshly.sh                           && . $_
+          test -r ~/.zshrc_work                                   && . $_
+          test -r ~/.zshrc_priv                                   && . $_
+
+    #===================================================================
+    # Custom
+    #===================================================================
+
+    - name:     Checking custom tasks
+      register: custom
+      tags:
+        - custom
+      stat:
+        path:   custom.yaml
+        follow: true
+
+    - name: Including custom tasks
+      when: custom.stat.exists
+      tags:
+        - custom
+      include_tasks:
+        file: custom.yaml
+
+    #===================================================================
+    # Cleanup
+    #===================================================================
+
+    - name: Pruning Homebrew cache
+      when: homebrew.changed |bool
+      shell:
+        cmd: brew cleanup -s --prune=all
+
+    - name: Pruning pip cache
+      when: pip.changed |bool
+      shell:
+        cmd: pip cache purge
+
