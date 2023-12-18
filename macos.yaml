@@ -414,10 +414,10 @@
     #-------------------------------------------------------------------
 
     - name:     Checking pinch to zoom
+      register: pinch2zoom
       tags:
         - essential
         - recommended
-      register: pinch2zoom
       shell:
         cmd: |-
           defaults read com.apple.AppleMultitouchTrackpad "TrackpadPinch"
@@ -513,7 +513,7 @@
           # before sourcing or exporting it,
           # and do not blindly assume that you use any specific add-ons,
           # like oh-my-zsh or Powerevel10K.
-          # But when you do, these configs will load them properly.
+          # But when you do, they will be loaded properly.
           #
 
           # Powerlevel10k instant prompt, should stay close to the top of ~/.zshrc

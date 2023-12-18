@@ -6,7 +6,10 @@ against alerts and incidents,
 let's use Ansible to bootstrap our workstation.
 
 The bootstrap aims to be complete while staying as agnostic as possible.
-And all tasks are grouped into 3 (three) major tags:
+For example, it doesn't install any browser,
+because it's all too often a personal choice.
+
+All tasks are grouped into 3 (three) major tags:
 
 -   essential
 -   recommended
