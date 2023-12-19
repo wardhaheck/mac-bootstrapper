@@ -7,7 +7,7 @@ let's use Ansible to bootstrap our workstation.
 
 The bootstrap aims to be complete while staying as agnostic as possible.
 For example, it doesn't install any browser,
-because it's all too often a personal choice.
+which all too often is a personal choice.
 
 All tasks are grouped into 3 (three) major tags:
 
@@ -63,8 +63,8 @@ but ignored by git.
 
 Ansible uses `mas` to install software from Apps Store.
 But since Ventura,
-`mas` has a bug that prevents it from installing and uninstalling apps,
-and can only list and search them.
+`mas` has a bug that prevents it from installing nor uninstalling apps,
+while still can list and search them.
 Thus, all `mas` tasks are currently disabled.
 
 Fortunately, there's only one essential software

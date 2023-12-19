@@ -3,9 +3,9 @@
 #
 # (c) wardhaheck <wardhana.wardhana@hostinger.com> 2023
 #
-# mas bug since Ventura:
-# cannot install and uninstall apps,
-# can only list and search.
+# Bugs:
+# Since Ventura, mas cannot install nor uninstall apps,
+# while still can list and search them.
 #
 
 - name:         macOS bootstrapper
@@ -13,7 +13,7 @@
   connection:   local
   gather_facts: false
   vars:
-    ruby_ver: 3.2.2
+    ruby_ver: 3.1.4
   tasks:
 
     #===================================================================
@@ -198,55 +198,18 @@
         - essential
         - rbenv
       shell:
-        creates: "$HOME/.rbenv/versions/{{ ruby_ver }}"
+        creates: $HOME/.rbenv/versions/{{ ruby_ver }}
         cmd: |-
-          rbenv install -s "{{ ruby_ver }}"
-
-    - name: Checking existing Ruby version
-      tags:
-        - essential
-        - rbenv
-      register:     rbenv_ver
-      changed_when: false
-      shell:
-        cmd: |-
-          ruby -v | awk '{print $2}'
-
-    - name: Setting Ruby version
-      when: rbenv_ver.stdout != ruby_ver
-      tags:
-        - essential
-        - rbenv
-      shell:
-        cmd: |-
-          rbenv global "{{ ruby_ver }}"
-
-    - name: Checking RubyGems update
-      tags:
-        - essential
-        - rbenv
-      register:     gem_update
-      changed_when: false
-      shell:
-        cmd: |-
-          gem outdated
-
-    - name: Updating RubyGems
-      when: gem_update.stdout != ""
-      tags:
-        - essential
-        - rbenv
-      shell:
-        cmd: |-
-          gem update
+          rbenv install -s "{{ ruby_ver }}" # skipped if already exists
 
     - name: Installing knife
       tags:
         - essential
         - rbenv
-      gem:
-        state: latest
-        name:  knife
+      shell:
+        creates: $HOME/.rbenv/shims/knife
+        cmd: |-
+          RBENV_VERSION={{ ruby_ver }} gem install knife ed25519
 
     #-------------------------------------------------------------------
     # k8s
@@ -345,8 +308,9 @@
     # Trackpad
     #-------------------------------------------------------------------
 
-    - name:     Checking tap to click
-      register: tap2click
+    - name:         Checking tap to click
+      register:     tap2click
+      changed_when: false
       tags:
         - essential
         - trackpad
@@ -358,13 +322,14 @@
       tags:
         - essential
         - trackpad
-      when: tap2click.stdout != 1
+      when: tap2click.stdout != '1'
       shell:
         cmd: |-
           defaults write com.apple.AppleMultitouchTrackpad "Clicking" '1'
 
-    - name:     Checking right click
-      register: rclick
+    - name:         Checking right click
+      register:     rclick
+      changed_when: false
       tags:
         - essential
         - trackpad
@@ -376,7 +341,7 @@
       tags:
         - essential
         - trackpad
-      when: rclick.stdout != 1
+      when: rclick.stdout != '1'
       shell:
         cmd: |-
           defaults write com.apple.AppleMultitouchTrackpad "TrackpadRightClick" '1'
@@ -413,23 +378,24 @@
     # Trackpad
     #-------------------------------------------------------------------
 
-    - name:     Checking pinch to zoom
-      register: pinch2zoom
+    - name:         Checking pinch to zoom
+      register:     pinch2zoom
+      changed_when: false
       tags:
-        - essential
         - recommended
+        - trackpad
       shell:
         cmd: |-
-          defaults read com.apple.AppleMultitouchTrackpad "TrackpadPinch"
+          defaults read com.apple.AppleMultitouchTrackpad TrackpadPinch
 
     - name: Setting pinch to zoom
       tags:
-        - essential
+        - recommended
         - trackpad
-      when: pinch2zoom.stdout != 1
+      when: pinch2zoom.stdout != '1'
       shell:
         cmd: |-
-          defaults write com.apple.AppleMultitouchTrackpad "TrackpadPinch" '1'
+          defaults write com.apple.AppleMultitouchTrackpad TrackpadPinch '1'
 
     #===================================================================
     # Extra
@@ -606,6 +572,22 @@
           test -r ~/.bazshly/bazshly.sh                           && . $_
           test -r ~/.zshrc_work                                   && . $_
           test -r ~/.zshrc_priv                                   && . $_
+
+    - name: Setting zshrc 3/4
+      tags:
+        - essential
+        - recommended
+        - extra
+        - zsh
+      blockinfile:
+        path:        $HOME/.zshrc
+        create:      true
+        marker:      '# {mark} aliases'
+        insertafter: EOF
+        block:       |
+          alias knife='RBENV_VERSION={{ ruby_ver }} knife'
+          alias  kctx='kubectl ctx'
+          alias   kns='kubectl ns'
 
     #===================================================================
     # Custom
