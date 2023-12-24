@@ -3,10 +3,6 @@
 #
 # (c) wardhaheck <wardhana.wardhana@hostinger.com> 2023
 #
-# Bugs:
-# Since Ventura, mas cannot install nor uninstall apps,
-# while still can list and search them.
-#
 
 - name:         macOS bootstrapper
   hosts:        localhost
@@ -20,8 +16,7 @@
     # Essential
     #===================================================================
 
-    - name:     Tapping essential Homebrew repos
-      register: homebrew
+    - name: Tapping essential Homebrew repos
       tags:
         - essential
         - homebrew
@@ -30,8 +25,7 @@
           - ankitpokhrel/jira-cli
           - teamookla/speedtest
 
-    - name:     Installing essential packages from Homebrew
-      register: homebrew
+    - name: Installing essential packages from Homebrew
       tags:
         - essential
         - homebrew
@@ -60,9 +54,9 @@
           - parallel
           - pssh # parallel ssh
           - wget
-          - curl   # alternative: /usr/bin/curl
-          - iperf3 # alternative: /usr/bin/iperf3-darwin
-          - netcat # alternative: /usr/bin/nc
+          - curl   # outdated alternative: /usr/bin/curl
+          - iperf3 # outdated alternative: /usr/bin/iperf3-darwin
+          - netcat # outdated alternative: /usr/bin/nc
           - speedtest # official by speedtest.net
           - telnet
           - nmap
@@ -76,13 +70,12 @@
           - jira-cli
           - neofetch # every sane shell should have neofetch
 
-    - name:     Installing essential packages from Homebrew Casks
-      register: homebrew
+    - name: Installing essential packages from Homebrew Casks
       tags:
         - essential
         - homebrew
       homebrew_cask:
-        state: latest
+        state:       latest
         name:
           - 1password
           - 1password-cli
@@ -100,6 +93,22 @@
           - flameshot # screen capturer
           - middleclick
           - appcleaner # uninstall DMG/PKG apps cleanly
+
+    - name:         Updating all packages from Homebrew
+      changed_when: false
+      tags:
+        - essential
+        - homebrew
+      homebrew:
+        upgrade_all: true
+
+    - name:         Updating all packages from Homebrew Casks
+      changed_when: false
+      tags:
+        - essential
+        - homebrew
+      homebrew_cask:
+        upgrade_all: true
 
     #-------------------------------------------------------------------
     # Tunnelblick
@@ -246,14 +255,13 @@
     # pip + pipx packages
     #-------------------------------------------------------------------
 
-    - name:     Installing essential packages from pip
-      register: pip
+    - name: Installing essential packages from pip
       tags:
         - essential
         - pip
       pip:
-        state:      latest
         executable: $PYENV_ROOT/shims/pip
+        state:      latest
         name:
           - pip
           - setuptools
@@ -266,8 +274,9 @@
         - essential
         - pipx
       community.general.pipx:
-        state: latest
-        name:  "{{ item }}"
+        executable: $PYENV_ROOT/shims/pipx
+        state:      latest
+        name:       "{{ item }}"
       loop:
         - ansible
         - nbcli  # NetBox
@@ -283,10 +292,21 @@
           pipx runpip nbcli install setuptools
 
     #-------------------------------------------------------------------
+    # ~/bin
+    #-------------------------------------------------------------------
+
+    - name: Creating ~/bin/
+      tags:
+        - essential
+      file:
+        path:  $HOME/bin/
+        state: directory
+
+    #-------------------------------------------------------------------
     # Go packages
     #-------------------------------------------------------------------
 
-    - name: Installing promql-cli
+    - name: Installing promql-cli 1/2
       tags:
         - essential
         - go
@@ -294,6 +314,15 @@
         creates: $HOME/go/bin/promql-cli
         cmd: |-
           go install github.com/nalbury/promql-cli@latest
+
+    - name: Installing promql-cli 2/2
+      tags:
+        - essential
+        - go
+      file:
+        src:   $HOME/go/bin/promql-cli
+        dest:  $HOME/bin/promql
+        state: link
 
     - name: Installing amtool
       tags:
@@ -350,8 +379,7 @@
     # Recommended
     #===================================================================
 
-    - name:     Installing recommended packages from Homebrew
-      register: homebrew
+    - name: Installing recommended packages from Homebrew
       tags:
         - recommended
         - homebrew
@@ -360,9 +388,11 @@
         name:
           - bat # better cat
           - eza # better ls
+          - ripgrep     # better grep
+          - ripgrep-all # ripgrep add-ons
+          - direnv # envar per directory
 
-    - name:     Installing recommended packages from Homebrew Casks
-      register: homebrew
+    - name: Installing recommended packages from Homebrew Casks
       tags:
         - recommended
         - homebrew
@@ -401,21 +431,18 @@
     # Extra
     #===================================================================
 
-    - name:     Installing extra packages from Homebrew
-      register: homebrew
+    - name: Installing extra packages from Homebrew
       tags:
         - extra
         - homebrew
       homebrew:
         state: latest
         name:
-          - neovim
-          - direnv # envar per directory
+          - neovim # better vim
           - dialog # TUI builder
           - smartmontools
 
-    - name:     Installing extra packages from Homebrew Casks
-      register: homebrew
+    - name: Installing extra packages from Homebrew Casks
       tags:
         - extra
         - homebrew
@@ -432,8 +459,9 @@
         - extra
         - pipx
       community.general.pipx:
-        state: latest
-        name:  "{{ item }}"
+        executable: $PYENV_ROOT/shims/pipx
+        state:      latest
+        name:       "{{ item }}"
       loop:
         - gcalcli # CLI Google Calendar client
         - grip    # render GitHub Markdown in browser
@@ -451,32 +479,93 @@
 
     - name: Installing plistwatch
       tags:
-        - essential
+        - extra
         - go
       shell:
         creates: $HOME/go/bin/plistwatch
         cmd: |-
           go install github.com/catilac/plistwatch@latest
 
+    - name: Cloning NvChad
+      tags:
+        - extra
+      git:
+        repo:  https://github.com/NvChad/NvChad
+        dest:  $HOME/.config/nvim
+        depth: 1
+
+    - name: Installing marks.nvim
+      tags:
+        - always
+      blockinfile:
+        path:        $HOME/.config/nvim/lua/custom/plugins.lua
+        marker:      '  -- {mark} marks.nvim'
+        insertafter: '^\s*\}\s*,\s*$'
+        backup:      true
+        block:       |
+          {% filter indent(width=2, first=true) %}
+
+          {
+            'chentoast/marks.nvim',
+            lazy = false,
+            config = function()
+              require'marks'.setup {
+                -- whether to map keybinds or not. default true
+                default_mappings = true,
+                -- which builtin marks to show. default {}
+                builtin_marks = { ".", "<", ">", "^" },
+                -- whether movements cycle back to the beginning/end of buffer. default true
+                cyclic = true,
+                -- whether the shada file is updated after modifying uppercase marks. default false
+                force_write_shada = false,
+                -- how often (in ms) to redraw signs/recompute mark positions. 
+                -- higher values will have better performance but may cause visual lag, 
+                -- while lower values may cause performance penalties. default 150.
+                refresh_interval = 250,
+                -- sign priorities for each type of mark - builtin marks, uppercase marks, lowercase
+                -- marks, and bookmarks.
+                -- can be either a table with all/none of the keys, or a single number, in which case
+                -- the priority applies to all marks.
+                -- default 10.
+                sign_priority = { lower=10, upper=15, builtin=8, bookmark=20 },
+                -- disables mark tracking for specific filetypes. default {}
+                excluded_filetypes = {},
+                -- marks.nvim allows you to configure up to 10 bookmark groups, each with its own
+                -- sign/virttext. Bookmarks can be used to group together positions and quickly move
+                -- across multiple buffers. default sign is '!@#$%^&*()' (from 0 to 9), and
+                -- default virt_text is "".
+                bookmark_0 = {
+                  sign = "⚑",
+                  virt_text = "hello world",
+                  -- explicitly prompt for a virtual line annotation when setting a bookmark from this group.
+                  -- defaults to false.
+                  annotate = false,
+                },
+                mappings = {}
+              }
+            end
+          },
+
+          {% endfilter %}
+
     #===================================================================
     # zsh
     #===================================================================
 
-    - name: Setting zsh 1/3
+    - name: Setting zshrc 1/4
       tags:
-        - essential
-        - recommended
-        - extra
+        - always
         - zsh
       blockinfile:
         path:         $HOME/.zshrc
         create:       true
         marker:       '# {mark} safe early config'
         insertbefore: BOF
+        backup:       true
         block:        |
           #
-          # All configs below are SAFE because they test each parameter
-          # before sourcing or exporting it,
+          # All configs below are SAFE because each parameter is tested
+          # before being sourced or exported,
           # and do not blindly assume that you use any specific add-ons,
           # like oh-my-zsh or Powerevel10K.
           # But when you do, they will be loaded properly.
@@ -534,17 +623,16 @@
     # Separated here
     # to anticipate manual inclusion
     # in pre-bootstrap stage
-    - name: Setting zshrc 2/3
+    - name: Setting zshrc 2/4
       tags:
-        - essential
-        - recommended
-        - extra
+        - always
         - zsh
       blockinfile:
         path:        $HOME/.zshrc
         create:      true
         marker:      '# {mark} pipx safe environment for Ansible'
         insertafter: EOF
+        backup:      true
         block:       |
           if [ -d ~/.pipx ] ; then
             export        PIPX_HOME="${HOME}/.pipx"
@@ -553,17 +641,16 @@
             export PIPX_LOCAL_VENVS="${PIPX_HOME}/venvs"
           fi
 
-    - name: Setting zshrc 3/3
+    - name: Setting zshrc 3/4
       tags:
-        - essential
-        - recommended
-        - extra
+        - always
         - zsh
       blockinfile:
         path:        $HOME/.zshrc
         create:      true
         marker:      '# {mark} safe late config'
         insertafter: EOF
+        backup:      true
         block:       |
           # fzf should be loaded after oh-my-zsh plugins
           test -r ~/.fzf.zsh                                      && . $_
@@ -573,24 +660,23 @@
           test -r ~/.zshrc_work                                   && . $_
           test -r ~/.zshrc_priv                                   && . $_
 
-    - name: Setting zshrc 3/4
+    - name: Setting zshrc 4/4
       tags:
-        - essential
-        - recommended
-        - extra
+        - always
         - zsh
       blockinfile:
         path:        $HOME/.zshrc
         create:      true
         marker:      '# {mark} aliases'
         insertafter: EOF
+        backup:      true
         block:       |
           alias knife='RBENV_VERSION={{ ruby_ver }} knife'
           alias  kctx='kubectl ctx'
           alias   kns='kubectl ns'
 
     #===================================================================
-    # Custom
+    # Custom tasks
     #===================================================================
 
     - name:     Checking custom tasks
@@ -612,13 +698,13 @@
     # Cleanup
     #===================================================================
 
-    - name: Pruning Homebrew cache
-      when: homebrew.changed |bool
+    - name:         Pruning Homebrew cache
+      changed_when: false
       shell:
         cmd: brew cleanup -s --prune=all
 
-    - name: Pruning pip cache
-      when: pip.changed |bool
+    - name:         Pruning pip cache
+      changed_when: false
       shell:
         cmd: pip cache purge
 

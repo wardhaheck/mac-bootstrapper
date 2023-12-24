@@ -6,7 +6,7 @@ against alerts and incidents,
 let's use Ansible to bootstrap our workstation.
 
 The bootstrap aims to be complete while staying as agnostic as possible.
-For example, it doesn't install any browser,
+For instance, it doesn't install any browser,
 which all too often is a personal choice.
 
 All tasks are grouped into 3 (three) major tags:
@@ -61,6 +61,8 @@ but ignored by git.
 
 ##  Bugs
 
+### Apps Store
+
 Ansible uses `mas` to install software from Apps Store.
 But since Ventura,
 `mas` has a bug that prevents it from installing nor uninstalling apps,
@@ -69,4 +71,10 @@ Thus, all `mas` tasks are currently disabled.
 
 Fortunately, there's only one essential software
 that is only available on Apps Store: WireGuard.
+
+
+### Trackpad
+
+Setting Trackpad from CLI (using `defaults`) currently doesn't work,
+and must be done manually from GUI.
 
