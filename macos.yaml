@@ -75,7 +75,7 @@
         - essential
         - homebrew
       homebrew_cask:
-        state:       latest
+        state: latest
         name:
           - 1password
           - 1password-cli
@@ -248,7 +248,7 @@
         - k8s
       git:
         repo:  https://github.com/ahmetb/kubectl-aliases.git
-        dest:  $HOME/.local/share/kubectl-aliases
+        dest:  $HOME/.kubectl-aliases
         depth: 1
 
     #-------------------------------------------------------------------
@@ -653,12 +653,12 @@
         backup:      true
         block:       |
           # fzf should be loaded after oh-my-zsh plugins
-          test -r ~/.fzf.zsh                                      && . $_
-          test -r ~/.local/share/kubectl-aliases/.kubectl_aliases && . $_
-          test -r ~/.iterm2_shell_integration.zsh                 && . $_
-          test -r ~/.bazshly/bazshly.sh                           && . $_
-          test -r ~/.zshrc_work                                   && . $_
-          test -r ~/.zshrc_priv                                   && . $_
+          test -r ~/.fzf.zsh                          && . $_
+          test -r ~/.kubectl-aliases/.kubectl_aliases && . $_
+          test -r ~/.iterm2_shell_integration.zsh     && . $_
+          test -r ~/.bazshly/bazshly.sh               && . $_
+          test -r ~/.zshrc_work                       && . $_
+          test -r ~/.zshrc_priv                       && . $_
 
     - name: Setting zshrc 4/4
       tags:
