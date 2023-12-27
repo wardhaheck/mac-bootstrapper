@@ -496,7 +496,7 @@
 
     - name: Installing marks.nvim
       tags:
-        - always
+        - extra
       blockinfile:
         path:        $HOME/.config/nvim/lua/custom/plugins.lua
         marker:      '  -- {mark} marks.nvim'
@@ -518,8 +518,8 @@
                 cyclic = true,
                 -- whether the shada file is updated after modifying uppercase marks. default false
                 force_write_shada = false,
-                -- how often (in ms) to redraw signs/recompute mark positions. 
-                -- higher values will have better performance but may cause visual lag, 
+                -- how often (in ms) to redraw signs/recompute mark positions.
+                -- higher values will have better performance but may cause visual lag,
                 -- while lower values may cause performance penalties. default 150.
                 refresh_interval = 250,
                 -- sign priorities for each type of mark - builtin marks, uppercase marks, lowercase
@@ -639,6 +639,10 @@
             export   PIPX_TRASH_DIR="${PIPX_HOME}/trash"
             export PIPX_SHARED_LIBS="${PIPX_HOME}/shared"
             export PIPX_LOCAL_VENVS="${PIPX_HOME}/venvs"
+
+            # Completion
+            [ ! -d ~/.oh-my-zsh ] && autoload -U bashcompinit && bashcompinit
+            eval "$(register-python-argcomplete pipx)"
           fi
 
     - name: Setting zshrc 3/4
